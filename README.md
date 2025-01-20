@@ -61,7 +61,7 @@ Before starting the recovery process, you need to obtain the following values:
 4. Click on **API development tools**.
 5. Your `api_id` and `api_hash` will be displayed on the page.
 
-### 🏷️ Obtaining `group_chat_id` or `channel_id`
+### 🏷️ Obtaining `group_chat_id` or `channel_id` by following the [instructions](https://gist.github.com/nafiesl/4ad622f344cd1dc3bb1ecbe468ff9f8a#get-chat-id-for-a-group-chat).
 Follow the provided instructions to obtain these values. Store them securely for the recovery process.
 
 ---
