@@ -1,6 +1,6 @@
 """
 This module handles the export of deleted Telegram messages and media using Telethon.
-It supports various export model based on user inputs,
+It supports various export models based on user inputs,
 including exporting all deleted messages, media only, or text-only messages.
 """
 
@@ -28,7 +28,6 @@ if os.path.exists(session_file):
 
 # Initialize Telegram client
 client: TelegramClient = TelegramClient(session_name, api_id, api_hash)
-client.start()
 
 
 async def export_messages(
@@ -40,7 +39,7 @@ async def export_messages(
     """
     Exports messages from a Telegram group or channel.
 
-    :param group_id: ID of the Telegram group or channel.
+    :param target_group_id: ID of the Telegram group or channel.
     :param mode: Export mode (1 - all, 2 - media only, 3 - text only).
     :param min_id: Minimum message ID to export.
     :param max_id: Maximum message ID to export.
@@ -58,51 +57,68 @@ async def export_messages(
         limit_per_request: int = 100  # Number of events per request
 
         try:
-            async for event in client.iter_admin_log(
-                group,
-                min_id=min_id,
-                max_id=max_id,
-                limit=limit_per_request,
-                delete=True,  # Only interested in deleted messages
-            ):
-                # Filter and process messages
-                if event.deleted_message and event.old.id >= min_id:
-                    if mode == 1:  # Export all text and media
-                        dump.write(event.old.to_json() + ",")
-                        c += 1
-                        print(
-                            f"Saved message {c} (ID: {event.old.id}, Date: {event.old.date})"
-                        )
+            while True:
+                events = [
+                    event
+                    async for event in client.iter_admin_log(
+                        group,
+                        min_id=min_id or 0,
+                        max_id=max_id or 0,
+                        limit=limit_per_request,
+                        delete=True,  # Interested only in deleted messages
+                    )
+                ]
 
-                        if event.old.media:  # Download media if available
+                if not events:
+                    print("Loading complete, no new messages.")
+                    break
+
+                # Filter and process messages
+                for event in events:
+                    if event.deleted_message and event.old.id >= min_id:
+                        if mode == 1:  # Export all text and media
+                            dump.write(event.old.to_json() + ",")
+                            c += 1
+                            print(
+                                f"Saved message {c} (ID: {event.old.id}, Date: {event.old.date})"
+                            )
+
+                            if event.old.media:
+                                m += 1
+                                await client.download_media(
+                                    event.old.media,
+                                    os.path.join(output_folder, str(event.old.id)),
+                                )
+                                print(
+                                    f"Saved media file {m} (ID: {event.old.id}, Date: {event.old.date})"
+                                )
+
+                        elif mode == 2 and event.old.media:  # Export media only
                             m += 1
                             await client.download_media(
                                 event.old.media,
-                                os.path.join(output_folder, str(event.old.id))
+                                os.path.join(output_folder, str(event.old.id)),
                             )
                             print(
                                 f"Saved media file {m} (ID: {event.old.id}, Date: {event.old.date})"
                             )
 
-                    elif mode == 2 and event.old.media:  # Export media only
-                        m += 1
-                        await client.download_media(
-                            event.old.media,
-                            os.path.join(output_folder, str(event.old.id)))
-                        print(
-                            f"Saved media file {m} (ID: {event.old.id}, Date: {event.old.date})"
-                        )
+                        elif mode == 3 and not event.old.media:  # Export text only
+                            dump.write(event.old.to_json() + ",")
+                            c += 1
+                            print(
+                                f"Saved text message {c} (ID: {event.old.id}, Date: {event.old.date})"
+                            )
 
-                    elif mode == 3 and not event.old.media:  # Export text only
-                        dump.write(event.old.to_json() + ",")
-                        c += 1
-                        print(
-                            f"Saved text message {c} (ID: {event.old.id}, Date: {event.old.date})"
-                        )
+                        await asyncio.sleep(0.1)  # Short pause to avoid flooding API
 
-                    await asyncio.sleep(0.1)  # Short pause to avoid blocking
+                max_id = (
+                    events[-1].id - 1
+                )  # Exclude the last received event from the next request
 
-            print("Export completed, no new messages found.")
+                if max_id < min_id:
+                    print("Reached the lower message ID limit.")
+                    break
 
         except RPCError as e:
             print(f"An error occurred: {e}")
@@ -115,9 +131,7 @@ export_mode: int = int(
 min_message_id: int = int(
     input("Enter the minimum message ID (0 to start from the first): ")
 )
-max_message_id: int = int(
-    input("Enter the maximum message ID (0 to retrieve all): ")
-)
+max_message_id: int = int(input("Enter the maximum message ID (0 to retrieve all): "))
 group_id: int = int(input("Enter the group or channel ID: "))
 
 
