@@ -44,8 +44,7 @@ async def main():
             message = msg.get("message", "")
             has_media = msg.get("media", None) is not None
             has_message = message != ""
-            date = datetime.fromisoformat(
-                msg["date"]).strftime("%Y %b %d, %H:%M")
+            date = datetime.fromisoformat(msg["date"]).strftime("%Y %b %d, %H:%M")
 
             print(
                 f"{message_id} {message}, {date}, has_media: {has_media}, from_id: {from_id}, reply_to: {reply_to}"
