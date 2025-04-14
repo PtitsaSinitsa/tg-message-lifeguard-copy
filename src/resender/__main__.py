@@ -92,7 +92,7 @@ async def main():
                     except Exception as e:
                         print(f"Error sending media {file_name}: {str(e)}")
 
-            if has_message or not did_send_media_msg:
+            if has_message and not did_send_media_msg:
                 print(f"Sending Message: {message}")
                 try:
                     await client.send_message(entity=group,
